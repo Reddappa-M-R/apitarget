@@ -2,15 +2,14 @@ from fastapi import FastAPI
 from auth import auth_router
 from endpoints import api_router
 from fastapi.middleware.cors import CORSMiddleware
+from logger import logger
 
-from logger import logger  # your logger setup
+app = FastAPI(title="Secure API")
 
-app = FastAPI()
-
-# CORS
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # secure later
+    allow_origins=["*"],  # Set securely in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,10 +19,10 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(api_router)
 
-# ✅ Required by Vercel: Expose the app object
+# ✅ Vercel compatibility
 handler = app
 
 @app.get("/")
 def root():
-    logger.info("Root endpoint hit")
+    logger.info("Health check hit")
     return {"message": "Hello from FastAPI on Vercel!"}
