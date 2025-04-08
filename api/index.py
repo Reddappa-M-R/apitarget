@@ -1,30 +1,29 @@
 from fastapi import FastAPI
-from database import Base, engine
 from auth import auth_router
 from endpoints import api_router
-from logger import logger  # 👈 custom logger
-
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="Secure & Public API Demo")
-
-app.include_router(auth_router)
-app.include_router(api_router)
-
 from fastapi.middleware.cors import CORSMiddleware
 
+from logger import logger  # your logger setup
+
+app = FastAPI()
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # secure later
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Entry for Vercel
+# Routers
+app.include_router(auth_router)
+app.include_router(api_router)
+
+# ✅ Required by Vercel: Expose the app object
 handler = app
 
-@handler.get("/")
-def read_root():
-    logger.info("Root endpoint hit")  # ✅ Example logging
+@app.get("/")
+def root():
+    logger.info("Root endpoint hit")
     return {"message": "Hello from FastAPI on Vercel!"}
