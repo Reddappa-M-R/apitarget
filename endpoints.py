@@ -25,15 +25,19 @@ def create_target_secure(
         db.add(target)
         db.commit()
         db.refresh(target)
-        logger.info("Secure record inserted successfully")
+        logger.info(f"Secure insert by {current_user}")
         return {
             "message": "Data inserted (secure)",
             "inserted_by": current_user,
             "data": data
         }
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Database error: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
-        logger.error(f"Failed to insert secure record: {e}")
-        raise
+        logger.exception(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @api_router.post("/public/api_target")
 def create_target_public(
@@ -45,11 +49,15 @@ def create_target_public(
         db.add(target)
         db.commit()
         db.refresh(target)
-        logger.info("Public record inserted successfully")
+        logger.info("Public insert")
         return {
             "message": "Data inserted (public)",
             "data": data
         }
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Database error: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
     except Exception as e:
-        logger.error(f"Failed to insert public record: {e}")
-        raise
+        logger.exception(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
