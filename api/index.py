@@ -1,15 +1,15 @@
 from fastapi import FastAPI
 from auth import auth_router
 from endpoints import api_router
-from fastapi.middleware.cors import CORSMiddleware
 from logger import logger
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Secure API")
+app = FastAPI()
 
-# CORS middleware
+# Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Set securely in prod
+    allow_origins=["*"],  # Restrict in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -19,10 +19,9 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(api_router)
 
-# ✅ Vercel compatibility
-handler = app
-
 @app.get("/")
-def root():
-    logger.info("Health check hit")
-    return {"message": "Hello from FastAPI on Vercel!"}
+def read_root():
+    return {"message": "FastAPI on Vercel is working!"}
+
+# ✅ THIS IS REQUIRED FOR VERCEL TO DETECT THE ASGI APP
+handler = app
