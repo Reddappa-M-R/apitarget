@@ -1,10 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
 import os
-import logging
-
+from dotenv import load_dotenv
 from config import LOG_LEVEL
+import logging
 
 load_dotenv()
 

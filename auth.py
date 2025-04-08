@@ -5,9 +5,14 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
 import os
-import logging
 
 from logger import logger
+
+logger.debug("Debug log")
+logger.info("Info log")
+logger.warning("Warning log")
+logger.error("Error log")
+
 
 auth_router = APIRouter()
 
