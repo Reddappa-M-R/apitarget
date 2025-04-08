@@ -2,7 +2,11 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
-
+import logging
+from config import LOG_LEVEL
+# Enable SQL logging
+logging.basicConfig()
+logging.getLogger("sqlalchemy.engine").setLevel(LOG_LEVEL)
 # Load environment variables from .env file
 load_dotenv()
 
