@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-class Target(BaseModel):
+class ApiTarget(BaseModel):
     userId: int
     id: int
     title: str
