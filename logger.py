@@ -1,21 +1,18 @@
 import logging
-import os
-
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+from logging.handlers import RotatingFileHandler
+from config import LOG_LEVEL, LOG_FILE
 
 logger = logging.getLogger("vercel_app")
 logger.setLevel(LOG_LEVEL)
 
-# Remove existing handlers if reloading
-if logger.hasHandlers():
-    logger.handlers.clear()
-
-# ✅ StreamHandler logs to console (safe for Vercel)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(LOG_LEVEL)
-
 formatter = logging.Formatter("[%(levelname)s] %(asctime)s - %(name)s - %(message)s")
-console_handler.setFormatter(formatter)
 
-logger.addHandler(console_handler)
-logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
+
+# Only use file logging locally or if write permissions are available
+if os.environ.get("ENV") != "vercel":
+    file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=3)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)

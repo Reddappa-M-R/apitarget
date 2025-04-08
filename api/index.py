@@ -1,8 +1,7 @@
 from fastapi import FastAPI
-from auth import auth_router
 from endpoints import api_router
+import logging
 from logger import logger
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
@@ -20,8 +19,9 @@ app.include_router(auth_router)
 app.include_router(api_router)
 
 @app.get("/")
-def read_root():
-    return {"message": "FastAPI on Vercel is working!"}
+def root():
+    logger.info("Root path hit")
+    return {"message": "Welcome to FastAPI on Vercel!"}
 
 # ✅ THIS IS REQUIRED FOR VERCEL TO DETECT THE ASGI APP
 handler = app
