@@ -1,4 +1,10 @@
 from fastapi import FastAPI
+import os
+import sys
+import uvicorn
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# Add the parent directory to sys.path
+sys.path.insert(0, parent_dir)
 from endpoints import api_router
 from auth import auth_router
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,4 +56,5 @@ def root():
     return {"message": "Welcome to FastAPI on Vercel!"}
 
 # Required for Vercel deployment
-handler = app
+if __name__ == "__main__":
+    uvicorn.run("index:app", host="127.0.0.1", port=8006, reload=True)
