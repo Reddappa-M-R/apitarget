@@ -2,14 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from typing import Optional
 import os
 from pydantic import BaseModel
+from typing import Optional
 from logger import logger
 
 auth_router = APIRouter()
 
-USER_DB = {"reddappa": "secret123"}
+USER_DB = {
+    "reddappa": "secret123"
+}
+
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -24,25 +27,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: Optional[str] = payload.get("sub")
-        if not username:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if username is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         return username
     except JWTError as e:
-        logger.error(f"JWT error: {e}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+        logger.error(f"JWT decode error: {e}")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
 @auth_router.post("/token", response_model=Token)
-def login(username: str = Form(...), password: str = Form(...)):
-    logger.info(f"Login attempt: {username}")
+def login_for_access_token(username: str = Form(...), password: str = Form(...)):
+    logger.info(f"Login attempt for user: {username}")
     if USER_DB.get(username) != password:
-        logger.warning(f"Invalid login: {username}")
+        logger.warning(f"Invalid login attempt for user: {username}")
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    token = create_access_token({"sub": username})
+    access_token = create_access_token(data={"sub": username})
     logger.info("Authentication successful")
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer"}

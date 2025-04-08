@@ -6,9 +6,7 @@ from schemas import ApiTargetCreate
 from auth import get_current_user
 from logger import logger
 
-logger.info("Authentication successful")
-logger.error("Failed to fetch record")
-
+logger.info("Auth route accessed")
 
 api_router = APIRouter()
 
