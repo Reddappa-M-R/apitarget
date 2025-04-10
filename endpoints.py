@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
 from models import ApiTarget
+from typing import List
 from schemas import ApiTargetCreate
 from auth import get_current_user
 from logger import logger
@@ -16,48 +17,71 @@ api_router = APIRouter()
 
 @api_router.post("/secure/api_target")
 def create_target_secure(
-    data: ApiTargetCreate,
+    data: List[ApiTargetCreate],
     db: Session = Depends(get_db),
     current_user: str = Depends(get_current_user)
 ):
+    inserted = []
+    skipped = []
+
     try:
-        existing = db.query(ApiTarget).filter_by(userId=data.userId, id=data.id).first()
-        if existing:
-            logger.warning(f"Duplicate entry: userId={data.userId}, id={data.id}")
-            raise HTTPException(status_code=400, detail="Duplicate entry")
-        target = ApiTarget(**data.dict())
-        db.add(target)
+        for entry in data:
+            exists = db.query(ApiTarget).filter_by(userId=entry.userId, id=entry.id).first()
+            if exists:
+                logger.warning(f"Duplicate skipped: userId={entry.userId}, id={entry.id}")
+                skipped.append(entry)
+                continue
+            new_target = ApiTarget(**entry.dict())
+            db.add(new_target)
+            db.flush()  # flush to get primary key if needed
+            inserted.append(entry)
+
         db.commit()
-        db.refresh(target)
-        logger.info(f"Secure insert by {current_user}")
+        logger.info(f"{len(inserted)} records inserted by {current_user}, {len(skipped)} skipped")
         return {
-            "message": "Data inserted (secure)",
-            "inserted_by": current_user,
-            "data": data
+            "inserted_count": len(inserted),
+            "skipped_count": len(skipped),
+            "inserted": inserted,
+            "skipped": skipped
         }
+
     except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"Database error: {e}")
+        logger.error(f"DB error during bulk insert: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Database error")
+
     except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
+        logger.exception(f"Unexpected error during bulk insert: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@api_router.post("/public/api_target")
-def create_target_public(data: ApiTargetCreate, db: Session = Depends(get_db)):
-    try:
-        existing = db.query(ApiTarget).filter_by(userId=data.userId, id=data.id).first()
-        if existing:
-            logger.warning(f"Duplicate entry: userId={data.userId}, id={data.id}")
-            raise HTTPException(status_code=400, detail="Duplicate entry")
 
-        new_entry = ApiTarget(**data.dict())
-        db.add(new_entry)
+@api_router.post("/public/api_target")
+def create_target_public(data: List[ApiTargetCreate], db: Session = Depends(get_db)):
+    inserted = []
+    skipped = []
+
+    try:
+        for entry in data:
+            exists = db.query(ApiTarget).filter_by(userId=entry.userId, id=entry.id).first()
+            if exists:
+                logger.warning(f"Duplicate skipped: userId={entry.userId}, id={entry.id}")
+                skipped.append(entry)
+                continue
+            new_entry = ApiTarget(**entry.dict())
+            db.add(new_entry)
+            db.flush()
+            inserted.append(entry)
+
         db.commit()
-        db.refresh(new_entry)
-        return new_entry
-    except HTTPException as http_exc:
-        raise http_exc  # Let FastAPI handle it
+        logger.info(f"Public bulk insert done. Inserted: {len(inserted)}, Skipped: {len(skipped)}")
+        return {
+            "inserted_count": len(inserted),
+            "skipped_count": len(skipped),
+            "inserted": inserted,
+            "skipped": skipped
+        }
+
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+

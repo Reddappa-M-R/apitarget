@@ -57,4 +57,4 @@ def root():
 
 # Required for Vercel deployment
 if __name__ == "__main__":
-    uvicorn.run("index:app", host="127.0.0.1", port=8008, reload=True)
+    uvicorn.run("index:app", host="127.0.0.1", port=8010, reload=True)

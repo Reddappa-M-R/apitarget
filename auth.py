@@ -16,7 +16,7 @@ logger.error("Error log")
 
 auth_router = APIRouter()
 
-USER_DB = {"reddappa": "secret123"}
+USER_DB = {"username": "reddappa", "password": "secret123"}
 
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 ALGORITHM = "HS256"
@@ -28,11 +28,16 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+class User(BaseModel):
+    username: str
+    password: str
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
     try:
@@ -50,16 +55,22 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
 
 
 @auth_router.post("/token", response_model=Token)
-def login_for_access_token(username: str = Form(...), password: str = Form(...)):
+def login_for_access_token(user: User):
     try:
-        logger.info(f"Login attempt for user: {username}")
-        if USER_DB.get(username) != password:
-            logger.warning(f"Invalid login attempt for user: {username}")
+        logger.info(f"Login attempt for user: {user.username}")
+
+        if user.username != USER_DB["username"] or user.password != USER_DB["password"]:
+            logger.warning(f"Invalid credentials for user: {user.username}")
             raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-        access_token = create_access_token(data={"sub": username})
-        logger.info("Authentication successful")
-        return {"access_token": access_token, "token_type": "bearer"}
+        token = create_access_token(data={"sub": user.username})
+        logger.info(f"Access token issued for user: {user.username}")
+
+        return {"access_token": token, "token_type": "bearer"}
+
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
     except Exception as e:
         logger.exception(f"Login error: {e}")
