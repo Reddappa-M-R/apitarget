@@ -58,9 +58,9 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
 
 # Login endpoint
 @auth_router.post("/token", response_model=Token)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    username = form_data.username
-    password = form_data.password
+def login_for_access_token(login_request: User):
+    username = login_request.username
+    password = login_request.password
 
     logger.info(f"Login attempt for user: {username}")
     if username != USER_DB["username"] or password != USER_DB["password"]:
