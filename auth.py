@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 import os
 from fastapi.security import OAuth2PasswordRequestForm
+
 from logger import logger
 
 auth_router = APIRouter()
@@ -18,7 +19,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 
 # Models
@@ -71,3 +72,25 @@ def login_for_access_token(login_request: User):
     logger.info(f"Issued token for user: {username}")
 
     return {"access_token": token, "token_type": "bearer"}
+
+@auth_router.get("/protected")
+def protected_route(current_user: str = Depends(get_current_user)):
+    return {"message": f"Hello {current_user}"}
+
+@auth_router.post("/secure-data")
+def read_secure_data(authorization: str = Header(...)):
+    try:
+        # Extract token from "Bearer <token>"
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid auth scheme")
+
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+        return {"message": f"Hello {username}, you are authenticated!"}
+
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
