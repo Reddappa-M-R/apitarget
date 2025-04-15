@@ -7,12 +7,14 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 from endpoints import api_router
 from auth import auth_router
+from fastapi import Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from logger import logger
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 
@@ -37,19 +39,16 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(api_router)
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception(f"Unhandled error at {request.url.path}: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Something went wrong. Please try again later."}
-    )
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"Validation error at {request.url.path}: {exc}")
+async def general_exception_handler(request: Request, exc: HTTPException):
+    logger.error(f"HTTPException: {exc.detail}")
     return await http_exception_handler(request, exc)
 
+# Validation handler (422 Unprocessable Entity)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(f"Validation error: {exc.errors()}")
+    return await request_validation_exception_handler(request, exc)
+app.add_exception_handler(StarletteHTTPException, general_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 @app.get("/")
 def root():
     logger.info("Root path hit")

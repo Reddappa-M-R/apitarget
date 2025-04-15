@@ -1,49 +1,51 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
 import os
-
+from fastapi.security import OAuth2PasswordRequestForm
 from logger import logger
-
-logger.debug("Debug log")
-logger.info("Info log")
-logger.warning("Warning log")
-logger.error("Error log")
-
 
 auth_router = APIRouter()
 
+# Simulated DB
 USER_DB = {"username": "reddappa", "password": "secret123"}
 
+# JWT settings
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+
+# Models
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class User(BaseModel):
     username: str
     password: str
 
-def create_access_token(data: dict, expires_delta: timedelta = None):
+
+# Token creation
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
+# Dependency to get current user from token
 def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
-        if username is None:
+        if not username:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         return username
     except JWTError as e:
@@ -54,27 +56,18 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# Login endpoint
 @auth_router.post("/token", response_model=Token)
-def login_for_access_token(user: User):
-    try:
-        logger.info(f"Login attempt for user: {user.username}")
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    username = form_data.username
+    password = form_data.password
 
-        if user.username != USER_DB["username"] or user.password != USER_DB["password"]:
-            logger.warning(f"Invalid credentials for user: {user.username}")
-            raise HTTPException(status_code=400, detail="Incorrect username or password")
+    logger.info(f"Login attempt for user: {username}")
+    if username != USER_DB["username"] or password != USER_DB["password"]:
+        logger.warning(f"Invalid login for user: {username}")
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-        token = create_access_token(data={"sub": user.username})
-        logger.info(f"Access token issued for user: {user.username}")
+    token = create_access_token(data={"sub": username})
+    logger.info(f"Issued token for user: {username}")
 
-        return {"access_token": token, "token_type": "bearer"}
-
-    except Exception as e:
-        logger.error(f"Login error: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
-    except Exception as e:
-        logger.exception(f"Login error: {e}")
-        raise HTTPException(status_code=500, detail="Login failed")
-
-
-
+    return {"access_token": token, "token_type": "bearer"}
